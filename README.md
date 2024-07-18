@@ -11,7 +11,7 @@ Before you begin, ensure you have the following installed:
 - PostgreSQL
 - pgvector extension
 
-##Installation
+### Installation
 
 1. Clone the repository:
 
