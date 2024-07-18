@@ -2,7 +2,7 @@
 
 This project is a RAG (Retrieval-Augmented Generation) model implementation that interacts with RabbitMQ for message processing. The project consists of training and completion request processing using a web crawler and OpenAI's API for embedding and generating responses.
 
-##Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following installed:
 
@@ -11,7 +11,7 @@ Before you begin, ensure you have the following installed:
 - PostgreSQL
 - pgvector extension
 
-### Installation
+## Installation
 
 1. Clone the repository:
 
