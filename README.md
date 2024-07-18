@@ -1,4 +1,4 @@
-#Web-Bot AI Assistant 
+# Web-Bot AI Assistant 
 
 This project is a RAG (Retrieval-Augmented Generation) model implementation that interacts with RabbitMQ for message processing. The project consists of training and completion request processing using a web crawler and OpenAI's API for embedding and generating responses.
 
