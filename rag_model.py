@@ -9,7 +9,8 @@ load_dotenv()
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-def fetch_documents(conn, question_embedding, bot_id, similarity_threshold=0.75):
+
+def fetch_documents(conn, question_embedding, bot_id, similarity_threshold=0.3):
     try:
         cursor = conn.cursor()
         cursor.execute("""
@@ -33,6 +34,7 @@ def fetch_documents(conn, question_embedding, bot_id, similarity_threshold=0.75)
         print("Error fetching documents:", e)
         return []
 
+
 def calculate_embedding(text):
     try:
         response = openai.Embedding.create(
@@ -46,22 +48,34 @@ def calculate_embedding(text):
         print(f"Error generating embedding: {e}")
         return None
 
-def generate_answer(question, relevant_documents):
-    context = "\n\n".join([doc[2] for doc in relevant_documents]) if relevant_documents else ""
+
+def generate_answer(question, relevant_documents, lastMessages):
+    print("User Question", question)
+    context = "\n\n".join(
+        [doc[2] for doc in relevant_documents]) if relevant_documents else ""
     messages = [
-        {"role": "system", "content": "You are a helpful assistant for the website."},
-        {"role": "user", "content": f"Question: {question}\n\nContext: {context}\n\nAnswer:"}
-    ]
+        {"role": "system", "content": "You are a helpful assistant for the website."}]
+    for lastMsg in lastMessages:
+
+        role = 'user' if lastMsg.get('type') == 1 else 'system'
+        messages.append(
+            {"role": role, "content": lastMsg.get('content')})
+        print("Messages", messages)
+
+    messages.append(
+        {"role": "user", "content": f"Question: {question}\n\nContext: {context}\n\nAnswer:"})
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
             max_tokens=150
         )
+
         return response['choices'][0]['message']['content'].strip()
     except Exception as e:
         print("Error generating answer:", e)
         return "Could not generate an answer at this time."
+
 
 def format_output(question, answer):
     output = (
@@ -77,7 +91,8 @@ def format_output(question, answer):
     )
     return output
 
-def rag_model_main(user_question, bot_id):
+
+def rag_model_main(user_question, bot_id, lastMessages):
     question = user_question
 
     conn = connect_to_database()
@@ -89,11 +104,12 @@ def rag_model_main(user_question, bot_id):
         return "Error generating question embedding."
 
     documents = fetch_documents(conn, question_embedding, bot_id)
-    if not documents:
-        print("No documents found in the database.")
-        return "No documents found in the database."
 
-    answer = generate_answer(question, documents)
+    # if not documents:
+    #     print("No documents found in the database.")
+    #     return "No documents found in the database."
+
+    answer = generate_answer(question, documents, lastMessages)
 
     output = format_output(question, answer)
     print(output)

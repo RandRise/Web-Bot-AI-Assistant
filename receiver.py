@@ -48,6 +48,7 @@ def process_message_completion_request(ch, method, properties, body):
         question = message.get('question')
         correlation_id = message.get('correlationId')
         bot_id = message.get('bot_id')  # Extract bot_id from the message
+        lastMessages = message.get('lastMessages')
         print("BotID",bot_id)
         # Get the replyTo field from the message
         reply_to = message.get('replyTo', 'gpt_response_queue')
@@ -56,7 +57,7 @@ def process_message_completion_request(ch, method, properties, body):
             f"Received message: Question: {question}, Correlation ID: {correlation_id}")
 
         # Call the RAG model main function with the question
-        answer = rag_model_main(question, bot_id)
+        answer = rag_model_main(question, bot_id, lastMessages)
 
         # Ensure answer is not None
         if answer is None:
