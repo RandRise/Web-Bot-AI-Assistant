@@ -49,22 +49,14 @@ def process_message_completion_request(ch, method, properties, body):
         correlation_id = message.get('correlationId')
         bot_id = message.get('bot_id')  # Extract bot_id from the message
         lastMessages = message.get('lastMessages')
-        print("BotID",bot_id)
-        # Get the replyTo field from the message
         reply_to = message.get('replyTo', 'gpt_response_queue')
-        print ("Message", message)
-        print(
-            f"Received message: Question: {question}, Correlation ID: {correlation_id}")
-
-        # Call the RAG model main function with the question
         answer = rag_model_main(question, bot_id, lastMessages)
 
-        # Ensure answer is not None
         if answer is None:
             answer = "Answer not found."
 
-        # Send the response back to the response queue specified in replyTo
         response = {
+            
             "question": question,
             "answer": answer,
             "correlationId": correlation_id
@@ -88,7 +80,6 @@ def start_consuming(queue, callback):
 
 def main():
     try:
-        # Start separate threads for each queue
         training_thread = threading.Thread(target=start_consuming, args=(
             'training_request', process_training_message))
         message_completion_thread = threading.Thread(target=start_consuming, args=(

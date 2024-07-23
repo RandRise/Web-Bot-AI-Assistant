@@ -1,10 +1,10 @@
 import numpy as np
-from db_connection import connect_to_database
 import openai
 import os
+import tiktoken
 from dotenv import load_dotenv
+from db_connection import connect_to_database
 
-# Load environment variables from .env file
 load_dotenv()
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -25,11 +25,16 @@ def fetch_documents(conn, question_embedding, bot_id, similarity_threshold=0.7):
                 AND 1 - cosine_distance(embeddings, %s::VECTOR) > %s
             ORDER BY
                 similarity DESC
-        """, (question_embedding.tolist(), bot_id, question_embedding.tolist(), similarity_threshold))
+            LIMIT 3
+        """, (question_embedding.tolist(),
+              bot_id,
+              question_embedding.tolist(),
+              similarity_threshold))
 
         documents = cursor.fetchall()
         cursor.close()
         return documents
+
     except Exception as e:
         print("Error fetching documents:", e)
         return []
@@ -49,35 +54,46 @@ def calculate_embedding(text):
         return None
 
 
+def count_tokens(text):
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+    tokens = tokenizer.encode(text)
+    return len(tokens)
+
+
+def trim_messages_to_fit_limit(messages, max_tokens):
+    total_tokens = sum(count_tokens(
+        message['content']) for message in messages)
+    while total_tokens > max_tokens:
+        total_tokens -= count_tokens(messages[0]['content'])
+        messages.pop(0)
+    return messages
+
+
 def generate_answer(question, relevant_documents, lastMessages):
-    print("User Question", question)
+
     context = "\n\n".join(
         [doc[2] for doc in relevant_documents]) if relevant_documents else ""
+
     messages = [
+
         {"role": "system", "content": "You are a helpful assistant for the website."}]
+
     for lastMsg in lastMessages:
-
+        
         role = 'user' if lastMsg.get('type') == 1 else 'system'
-        messages.append(
-            {"role": role, "content": lastMsg.get('content')})
-        print("Messages", messages)
+        
+        messages.append({"role": role, "content": lastMsg.get('content')})
 
-    messages.append(
-        {"role": "user", "content": f"""Use the relevant information provided to answer the Question below.And Ensure that all answers to my questions come from reputable sources Respond in the same language as the Question. If you don't know the answer, try to answer based on old messages. If you dont know the answer dont improvise with randoms.
+    messages = trim_messages_to_fit_limit(messages, max_tokens=8000)
 
-         Relevant Information:
-         {context}
+    messages.append({"role": "user", "content": f"Use the relevant information provided to answer the Question below. Respond in the same language as the Question. If you don't know the answer, try to answer based on old messages. If you don't know the answer, don't improvise with random answers.\n\nRelevant Information:\n{context}\n\nQuestion: {question}\nAnswer:"})
 
-            Question: {question}
-         Answer: """
-         })
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
             max_tokens=150
         )
-
         return response['choices'][0]['message']['content'].strip()
     except Exception as e:
         print("Error generating answer:", e)
@@ -112,14 +128,9 @@ def rag_model_main(user_question, bot_id, lastMessages):
 
     documents = fetch_documents(conn, question_embedding, bot_id)
 
-    # if not documents:
-    #     print("No documents found in the database.")
-    #     return "No documents found in the database."
-
     answer = generate_answer(question, documents, lastMessages)
 
     output = format_output(question, answer)
-    print(output)
 
     conn.close()
     return answer

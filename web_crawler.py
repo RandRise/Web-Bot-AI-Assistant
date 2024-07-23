@@ -56,7 +56,7 @@ def store_document_chunks(conn, url, text, bot_id):
         
         try:
             store_document_chunk(conn, bot_id, url, chunk, embedding)
-            print(f"Stored docment from {url}")
+            print(f"Stored document from {url}")
         except Exception as e:
             print(f"Error storing chunk from {url}: {e}")
 
