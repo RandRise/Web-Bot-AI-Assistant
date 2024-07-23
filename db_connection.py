@@ -13,6 +13,7 @@ DATABASE_NAME = os.getenv('DATABASE_NAME')
 DATABASE_USER = os.getenv('DATABASE_USER')
 DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
 
+
 def connect_to_database():
     try:
         conn = psycopg2.connect(
@@ -22,11 +23,25 @@ def connect_to_database():
             host=DATABASE_HOST,
             port=DATABASE_PORT
         )
-        print("Connected to PostgreSQL database successfully!")
         return conn
     except (Exception, psycopg2.Error) as error:
         print("Error while connecting to PostgreSQL database:", error)
         return None
+
+
+def store_document_chunk(conn, bot_id, url, chunk, embedding):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO documents (bot_id, url, text, embeddings) VALUES (%s, %s, %s, %s)",
+            (bot_id, url, chunk, embedding)
+        )
+        conn.commit()
+        cursor.close()
+    except Exception as e:
+        print(f"Error storing document chunk: {e}")
+        conn.rollback()  # Rollback the transaction on error
+
 
 def create_documents_table(conn):
     try:
@@ -45,6 +60,7 @@ def create_documents_table(conn):
     except Exception as e:
         print("Error creating documents table:", e)
 
+
 def store_document(conn, url, text):
     try:
         cursor = conn.cursor()
@@ -59,6 +75,7 @@ def store_document(conn, url, text):
         print("Error storing document:", e)
         return None
 
+
 def store_embeddings(conn, document_id, embeddings):
     try:
         cursor = conn.cursor()
@@ -70,6 +87,7 @@ def store_embeddings(conn, document_id, embeddings):
         print(f"Stored embeddings for document ID {document_id}")
     except Exception as e:
         print("Error storing embeddings:", e)
+
 
 def preprocess_html(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')

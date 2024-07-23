@@ -4,23 +4,24 @@ from urllib.parse import urlparse, urljoin
 import openai
 import os
 from dotenv import load_dotenv
-from db_connection import connect_to_database, store_document
+import tiktoken
+from db_connection import connect_to_database, store_document_chunk
 
 # Load environment variables from .env file
 load_dotenv()
 
 # OpenAI API Key from environment variable
 openai.api_key = os.getenv('OPENAI_API_KEY')
-
+if not openai.api_key:
+    raise ValueError("OpenAI API key is not set in the environment variables.")
 
 def is_valid_link(url):
     parsed_url = urlparse(url)
     if parsed_url.scheme not in ['http', 'https']:
         return False
-    if 'youtube.com' in parsed_url.netloc or 'facebook.com' in parsed_url.netloc or 'twitter.com' in parsed_url.netloc:
+    if any(domain in parsed_url.netloc for domain in ['youtube.com', 'facebook.com', 'twitter.com']):
         return False
     return True
-
 
 def calculate_embedding(text):
     try:
@@ -33,26 +34,33 @@ def calculate_embedding(text):
         print(f"Error generating embedding: {e}")
         return None
 
+def split_text_into_chunks(text, max_tokens=4000):
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+    tokens = tokenizer.encode(text)
+    chunks = []
 
-def store_document(conn, url, text, bot_id):
-    embedding = calculate_embedding(text)
-    if embedding is None:
-        print(f"Failed to calculate embedding for {url}. Document not stored.")
-        return
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO documents (bot_id, url, text, embeddings) VALUES (%s, %s, %s, %s)",
-            (bot_id, url, text, embedding)
-        )
-        conn.commit()
-        cursor.close()
-        print(f"Stored document from {url}")
-    except Exception as e:
-        print(f"Error storing document from {url}: {e}")
+    for i in range(0, len(tokens), max_tokens):
+        chunk_tokens = tokens[i:i + max_tokens]
+        chunk_text = tokenizer.decode(chunk_tokens)
+        chunks.append(chunk_text)
 
+    return chunks
 
-def crawl_website(bot_id, url, max_depth=2):  # Add bot_id here
+def store_document_chunks(conn, url, text, bot_id):
+    chunks = split_text_into_chunks(text)
+    for chunk in chunks:
+        embedding = calculate_embedding(chunk)
+        if embedding is None:
+            print(f"Failed to calculate embedding for chunk from {url}.")
+            continue
+        
+        try:
+            store_document_chunk(conn, bot_id, url, chunk, embedding)
+            print(f"Stored docment from {url}")
+        except Exception as e:
+            print(f"Error storing chunk from {url}: {e}")
+
+def crawl_website(bot_id, url, max_depth=2):
     visited_urls = set()
     visited_links = []
 
@@ -70,7 +78,10 @@ def crawl_website(bot_id, url, max_depth=2):  # Add bot_id here
 
                 if text and text not in visited_urls:
                     visited_urls.add(text)
-                    store_document(conn, current_url, text, bot_id)
+                    conn = connect_to_database()
+                    if conn:
+                        store_document_chunks(conn, current_url, text, bot_id)
+                        conn.close()
 
                 for link in soup.find_all('a', href=True):
                     absolute_link = urljoin(current_url, link['href'])
@@ -81,18 +92,12 @@ def crawl_website(bot_id, url, max_depth=2):  # Add bot_id here
         except Exception as e:
             print(f"Error crawling {current_url}: {e}")
 
-    conn = connect_to_database()
-    if not conn:
-        return
-
     recursive_crawl(url, max_depth)
-    conn.close()
 
     print("\nVisited Links:")
     for i, link in enumerate(visited_links, 1):
         print(f"{i}. {link}")
     print(f"\nTotal Links Visited: {len(visited_links)}")
-
 
 if __name__ == "__main__":
     pass

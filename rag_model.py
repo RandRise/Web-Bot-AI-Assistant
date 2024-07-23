@@ -10,7 +10,7 @@ load_dotenv()
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 
-def fetch_documents(conn, question_embedding, bot_id, similarity_threshold=0.3):
+def fetch_documents(conn, question_embedding, bot_id, similarity_threshold=0.7):
     try:
         cursor = conn.cursor()
         cursor.execute("""
@@ -63,7 +63,14 @@ def generate_answer(question, relevant_documents, lastMessages):
         print("Messages", messages)
 
     messages.append(
-        {"role": "user", "content": f"Question: {question}\n\nContext: {context}\n\nAnswer:"})
+        {"role": "user", "content": f"""Use the relevant information provided to answer the Question below.And Ensure that all answers to my questions come from reputable sources Respond in the same language as the Question. If you don't know the answer, try to answer based on old messages. If you dont know the answer dont improvise with randoms.
+
+         Relevant Information:
+         {context}
+
+            Question: {question}
+         Answer: """
+         })
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
