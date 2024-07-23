@@ -7,10 +7,8 @@ from dotenv import load_dotenv
 import tiktoken
 from db_connection import connect_to_database, store_document_chunk
 
-# Load environment variables from .env file
 load_dotenv()
 
-# OpenAI API Key from environment variable
 openai.api_key = os.getenv('OPENAI_API_KEY')
 if not openai.api_key:
     raise ValueError("OpenAI API key is not set in the environment variables.")
