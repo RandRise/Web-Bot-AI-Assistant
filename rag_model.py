@@ -86,11 +86,11 @@ def generate_answer(question, relevant_documents, lastMessages):
 
     messages = trim_messages_to_fit_limit(messages, max_tokens=8000)
 
-    messages.append({"role": "user", "content": f"Use the relevant information provided to answer the Question below. Respond in the same language as the Question. If you don't know the answer, try to answer based on old messages. If you don't know the answer, don't improvise with random answers.\n\nRelevant Information:\n{context}\n\nQuestion: {question}\nAnswer:"})
+    messages.append({"role": "user", "content": f"Use the relevant information provided to answer the Question below. Respond in the same language as the Question.English is the desired language unless the question was asked in another language. If you don't know the answer, try to answer based on old messages. If you don't know the answer, don't improvise with random answers.\n\nRelevant Information:\n{context}\n\nQuestion: {question}\nAnswer:"})
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=messages,
             max_tokens=150
         )
